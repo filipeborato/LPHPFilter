@@ -19,9 +19,18 @@ LPHPFilterAudioProcessor::LPHPFilterAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       )
+                       ),
+                        parameters(*this, nullptr, juce::Identifier("LowpassAndHighpassPlugin"),
+                            { std::make_unique<juce::AudioParameterFloat>(
+                                                  "cutoff_frequency", "Cutoff Frequency",
+                                                  juce::NormalisableRange{ 20.f, 20000.f, 0.1f, 0.2f, false }, 500.f),
+                                                std::make_unique<juce::AudioParameterBool>("highpass", "Highpass", false)
+                            })
 #endif
 {
+    cutoffFrequencyParameter =
+        parameters.getRawParameterValue("cutoff_frequency");
+    highpassParameter = parameters.getRawParameterValue("highpass");
 }
 
 LPHPFilterAudioProcessor::~LPHPFilterAudioProcessor()
@@ -94,7 +103,7 @@ void LPHPFilterAudioProcessor::changeProgramName (int index, const juce::String&
 void LPHPFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    filter.setSamplingRate(static_cast<float>(sampleRate));
 }
 
 void LPHPFilterAudioProcessor::releaseResources()
@@ -144,18 +153,13 @@ void LPHPFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, j
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // This is the place where you'd normally do the guts of your plugin's
-    // audio processing...
-    // Make sure to reset the state if your inner loop is processing
-    // the samples and the outer loop is handling the channels.
-    // Alternatively, you can process the samples with the channels
-    // interleaved by keeping the same state.
-    for (int channel = 0; channel < totalNumInputChannels; ++channel)
-    {
-        auto* channelData = buffer.getWritePointer (channel);
+    const auto cutoffFrequency = cutoffFrequencyParameter->load();
+    const auto highpass = *highpassParameter < 0.5f ? false : true;
+    
+    filter.setCutoffFrequency(cutoffFrequency);
+    filter.setHighpass(highpass);
 
-        // ..do something to the data...
-    }
+    filter.processBlock(buffer, midiMessages);
 }
 
 //==============================================================================

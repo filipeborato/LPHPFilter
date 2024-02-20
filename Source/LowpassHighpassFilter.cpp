@@ -22,7 +22,7 @@ void LowpassHighpassFilter::setCutoffFrequency(float cutoffFrequency)
 
 void LowpassHighpassFilter::setSamplingRate(float samplingRate)
 {
-	this->samplingRate = samplingRate;	
+	this->samplingRate = samplingRate;
 }
 
 void LowpassHighpassFilter::processBlock(juce::AudioBuffer<float>& buffer,
