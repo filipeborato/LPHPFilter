@@ -9,6 +9,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "LowpassHighpassFilter.h"
 
 //==============================================================================
 /**
@@ -54,6 +55,10 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
+    juce::AudioProcessorValueTreeState parameters;
+    std::atomic<float>* cutoffFrequencyParameter = nullptr;
+    std::atomic<float>* highpassParameter = nullptr;
+    LowpassHighpassFilter filter;
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LPHPFilterAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(LPHPFilterAudioProcessor);
 };
