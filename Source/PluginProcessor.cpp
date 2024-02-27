@@ -170,7 +170,7 @@ bool LPHPFilterAudioProcessor::hasEditor() const
 
 juce::AudioProcessorEditor* LPHPFilterAudioProcessor::createEditor()
 {
-    return new LPHPFilterAudioProcessorEditor (*this);
+    return new LPHPFilterAudioProcessorEditor (*this, parameters);
 }
 
 //==============================================================================
