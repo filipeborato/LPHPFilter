@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="Vq6rFM" name="LPHPFilter" projectType="audioplug" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1">
+              addUsingNamespaceToJuceHeader="0" displaySplashScreen="1" jucerFormatVersion="1"
+              companyName="Borato Plugins">
   <MAINGROUP id="szexNO" name="LPHPFilter">
     <GROUP id="{4E5714D5-3599-02F8-082B-30E67F82A554}" name="Source">
       <FILE id="LQtly3" name="LowpassHighpassFilter.h" compile="0" resource="0"
