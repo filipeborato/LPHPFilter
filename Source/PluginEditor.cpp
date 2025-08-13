@@ -43,7 +43,7 @@ LPHPFilterAudioProcessorEditor::LPHPFilterAudioProcessorEditor (LPHPFilterAudioP
 {
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
-    constexpr auto HEIGHT = 400;
+    constexpr auto HEIGHT = 260;
     constexpr auto WIDTH = 200;
 
     addAndMakeVisible (cutoffFrequencySlider);
