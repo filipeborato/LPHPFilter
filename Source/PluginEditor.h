@@ -11,6 +11,14 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+class RotarySliderLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    void drawRotarySlider (juce::Graphics& g, int x, int y, int width, int height,
+                           float sliderPosProportional, float rotaryStartAngle,
+                           float rotaryEndAngle, juce::Slider& slider) override;
+};
+
 //==============================================================================
 /**
 */
@@ -29,6 +37,7 @@ private:
     // access the processor object that created it.
     LPHPFilterAudioProcessor& audioProcessor;
 
+    RotarySliderLookAndFeel rotaryLook;
     juce::Slider cutoffFrequencySlider;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
         cutoffFrequencyAttachment;
