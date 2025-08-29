@@ -24,10 +24,10 @@ LPHPFilterAudioProcessor::LPHPFilterAudioProcessor()
             ),
             std::make_unique<juce::AudioParameterBool>("highpass", "Highpass", false),
 
-                // NOVO: parâmetro de ganho (0.0 .. 1.0), default 0.5
+                // MODIFICADO: parâmetro de ganho agora vai de 0.0 a 2.0, default 1.0 (unity gain)
                 std::make_unique<juce::AudioParameterFloat>(
                     "gain", "Gain",
-                    juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f
+                    juce::NormalisableRange<float>(0.0f, 2.0f, 0.001f), 1.0f
                 )
         })
 {
@@ -121,7 +121,7 @@ void LPHPFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     filter.setHighpass(highpass);
     filter.processBlock(buffer, midiMessages);
 
-    // aplica ganho global após o filtro
+    // aplica ganho global após o filtro (agora pode amplificar até 2x)
     buffer.applyGain(gain);
 }
 
@@ -134,9 +134,10 @@ juce::AudioProcessorEditor* LPHPFilterAudioProcessor::createEditor()
 }
 
 //==============================================================================
-// Persistência do estado
+// Persistência do estado - CONFIRMADO: função implementada corretamente
 void LPHPFilterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
+    // Salva o estado completo do APVTS (todos os parâmetros)
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
@@ -144,6 +145,7 @@ void LPHPFilterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 
 void LPHPFilterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
+    // Restaura o estado completo do APVTS (todos os parâmetros)
     std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
     if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
     {

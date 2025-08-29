@@ -8,6 +8,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 //==============================================================================
 // RotarySliderLookAndFeel implementation
@@ -120,8 +121,18 @@ LPHPFilterAudioProcessorEditor::LPHPFilterAudioProcessorEditor (LPHPFilterAudioP
       audioProcessor (p),
       apvts (vts)
 {
-    constexpr int WIDTH = 360;
-    constexpr int HEIGHT = 260;
+    // Tamanho inicial e limites de redimensionamento
+    constexpr int INITIAL_WIDTH = 360;
+    constexpr int INITIAL_HEIGHT = 260;
+    constexpr int MIN_WIDTH = 300;
+    constexpr int MIN_HEIGHT = 200;
+    constexpr int MAX_WIDTH = 800;
+    constexpr int MAX_HEIGHT = 600;
+
+    // Configurações de redimensionamento
+    setResizable (true, true); // Permite redimensionamento e adiciona o corner resizer
+    setResizeLimits (MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT);
+    getConstrainer()->setFixedAspectRatio (INITIAL_WIDTH / (float) INITIAL_HEIGHT); // Mantém proporção 
 
     // Cutoff
     cutoffFrequencySlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
@@ -153,7 +164,7 @@ LPHPFilterAudioProcessorEditor::LPHPFilterAudioProcessorEditor (LPHPFilterAudioP
     highpassButtonLabel.setJustificationType (juce::Justification::centredLeft);
     addAndMakeVisible (highpassButtonLabel);
 
-    setSize (WIDTH, HEIGHT);
+    setSize (INITIAL_WIDTH, INITIAL_HEIGHT);
 }
 
 LPHPFilterAudioProcessorEditor::~LPHPFilterAudioProcessorEditor()
@@ -169,26 +180,69 @@ void LPHPFilterAudioProcessorEditor::paint (juce::Graphics& g)
     // Fundo roxo escuro
     g.fillAll (juce::Colour::fromRGB (25, 10, 40));
     g.setColour (juce::Colours::whitesmoke);
-    g.setFont (15.0f);
+    
+    // Fonte escalável baseada no tamanho da janela
+    auto fontSize = getHeight() * 0.06f; // 6% da altura da janela
+    g.setFont (fontSize);
 }
 
 void LPHPFilterAudioProcessorEditor::resized()
 {
-    auto bounds = getLocalBounds().reduced (16);
+    auto bounds = getLocalBounds();
+    
+    // Calcula proporções baseadas no tamanho atual
+    auto windowWidth = (float) bounds.getWidth();
+    auto windowHeight = (float) bounds.getHeight();
+    
+    // Margem proporcional (4% da largura - reduzida para dar mais espaço aos knobs)
+    auto margin = windowWidth * 0.04f;
+    bounds = bounds.reduced (juce::roundToInt (margin));
 
-    auto knobsRow = bounds.removeFromTop (180);
-    auto left = knobsRow.removeFromLeft (knobsRow.getWidth() / 2).reduced (8);
-    auto right = knobsRow.reduced (8);
+    // Área dos knobs (75% da altura disponível - aumentada)
+    auto knobAreaHeight = (float) bounds.getHeight() * 0.75f;
+    auto knobsRow = bounds.removeFromTop (juce::roundToInt (knobAreaHeight));
+    
+    // Divide em duas colunas para os knobs
+    auto leftKnob = knobsRow.removeFromLeft (knobsRow.getWidth() / 2).reduced (juce::roundToInt (margin * 0.3f));
+    auto rightKnob = knobsRow.reduced (juce::roundToInt (margin * 0.3f));
 
-    cutoffFrequencyLabel.setBounds (left.removeFromTop (20));
-    cutoffFrequencySlider.setBounds (left.withSizeKeepingCentre (150, 150));
+    // Altura do label proporcional (10% da altura da área de knob - reduzida)
+    auto labelHeight = knobAreaHeight * 0.1f;
+    
+    // Tamanho do knob aumentado para 95% do espaço disponível
+    auto availableKnobSize = juce::jmin ((float) leftKnob.getWidth(), (float) leftKnob.getHeight() - labelHeight);
+    auto knobSize = availableKnobSize * 0.95f; // Aumentado de 85% para 95%
+    
+    // Configura cutoff knob
+    cutoffFrequencyLabel.setBounds (leftKnob.removeFromTop (juce::roundToInt (labelHeight)));
+    cutoffFrequencySlider.setBounds (leftKnob.withSizeKeepingCentre (juce::roundToInt (knobSize), 
+                                                                     juce::roundToInt (knobSize)));
+    
+    // Configura gain knob
+    gainLabel.setBounds (rightKnob.removeFromTop (juce::roundToInt (labelHeight)));
+    gainSlider.setBounds (rightKnob.withSizeKeepingCentre (juce::roundToInt (knobSize), 
+                                                           juce::roundToInt (knobSize)));
 
-    gainLabel.setBounds (right.removeFromTop (20));
-    gainSlider.setBounds (right.withSizeKeepingCentre (150, 150));
+    // Atualiza tamanho das textboxes dos sliders proporcionalmente
+    auto textBoxWidth = knobSize * 0.6f; // Aumentado de 55% para 60%
+    auto textBoxHeight = windowHeight * 0.08f;
+    
+    cutoffFrequencySlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 
+                                           juce::roundToInt (textBoxWidth), 
+                                           juce::roundToInt (textBoxHeight));
+    gainSlider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 
+                                 juce::roundToInt (textBoxWidth), 
+                                 juce::roundToInt (textBoxHeight));
 
-    auto row = bounds.removeFromTop (30);
-    highpassButton.setBounds (row.removeFromLeft (30));
-    row.removeFromLeft (10);
-    highpassButtonLabel.setBounds (row);
+    // Área do toggle button (restante da altura)
+    bounds.removeFromTop (juce::roundToInt (margin * 0.4f)); // Espaçamento reduzido
+    auto toggleRow = bounds.removeFromTop (juce::roundToInt (windowHeight * 0.1f)); // Reduzido de 12% para 10%
+    
+    // Tamanho do toggle button proporcional
+    auto toggleSize = juce::jmin (toggleRow.getHeight() * 0.8f, windowWidth * 0.08f);
+    
+    highpassButton.setBounds (toggleRow.removeFromLeft (juce::roundToInt (toggleSize)));
+    toggleRow.removeFromLeft (juce::roundToInt (margin * 0.3f)); // Espaçamento pequeno
+    highpassButtonLabel.setBounds (toggleRow);
 }
 
