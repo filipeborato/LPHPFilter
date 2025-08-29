@@ -1,194 +1,159 @@
-/*
-  ==============================================================================
-
-    This file contains the basic framework code for a JUCE plugin processor.
-
-  ==============================================================================
-*/
-
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 //==============================================================================
+// Construtor: inicializa o APVTS
 LPHPFilterAudioProcessor::LPHPFilterAudioProcessor()
-#ifndef JucePlugin_PreferredChannelConfigurations
-     : AudioProcessor (BusesProperties()
-                     #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
-                       .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
-                       .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
-                     #endif
-                       ),
-                        parameters(*this, nullptr, juce::Identifier("LowpassAndHighpassPlugin"),
-                            { std::make_unique<juce::AudioParameterFloat>(
-                                                  "cutoff_frequency", "Cutoff Frequency",
-                                                  juce::NormalisableRange{ 20.f, 20000.f, 0.1f, 0.2f, false }, 500.f),
-                                                std::make_unique<juce::AudioParameterBool>("highpass", "Highpass", false)
-                            })
+#if !defined(JucePlugin_PreferredChannelConfigurations)
+    : AudioProcessor(BusesProperties()
+#if ! JucePlugin_IsMidiEffect
+#if ! JucePlugin_IsSynth
+        .withInput("Input", juce::AudioChannelSet::stereo(), true)
 #endif
+        .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+#endif
+    )
+#else
+    : AudioProcessor()
+#endif
+    , parameters(*this, nullptr, juce::Identifier("LowpassAndHighpassPlugin"),
+        {
+            std::make_unique<juce::AudioParameterFloat>(
+                "cutoff_frequency", "Cutoff Frequency",
+                juce::NormalisableRange<float>(20.f, 20000.f, 0.1f, 0.2f, false), 500.f
+            ),
+            std::make_unique<juce::AudioParameterBool>("highpass", "Highpass", false),
+
+                // NOVO: parâmetro de ganho (0.0 .. 1.0), default 0.5
+                std::make_unique<juce::AudioParameterFloat>(
+                    "gain", "Gain",
+                    juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f
+                )
+        })
 {
-    cutoffFrequencyParameter =
-        parameters.getRawParameterValue("cutoff_frequency");
+    cutoffFrequencyParameter = parameters.getRawParameterValue("cutoff_frequency");
     highpassParameter = parameters.getRawParameterValue("highpass");
+    gainParameter = parameters.getRawParameterValue("gain");
 }
 
-LPHPFilterAudioProcessor::~LPHPFilterAudioProcessor()
-{
-}
+LPHPFilterAudioProcessor::~LPHPFilterAudioProcessor() = default;
 
 //==============================================================================
-const juce::String LPHPFilterAudioProcessor::getName() const
-{
-    return JucePlugin_Name;
-}
+const juce::String LPHPFilterAudioProcessor::getName() const { return JucePlugin_Name; }
 
 bool LPHPFilterAudioProcessor::acceptsMidi() const
 {
-   #if JucePlugin_WantsMidiInput
+#if JucePlugin_WantsMidiInput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool LPHPFilterAudioProcessor::producesMidi() const
 {
-   #if JucePlugin_ProducesMidiOutput
+#if JucePlugin_ProducesMidiOutput
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
 bool LPHPFilterAudioProcessor::isMidiEffect() const
 {
-   #if JucePlugin_IsMidiEffect
+#if JucePlugin_IsMidiEffect
     return true;
-   #else
+#else
     return false;
-   #endif
+#endif
 }
 
-double LPHPFilterAudioProcessor::getTailLengthSeconds() const
-{
-    return 0.0;
-}
+double LPHPFilterAudioProcessor::getTailLengthSeconds() const { return 0.0; }
 
-int LPHPFilterAudioProcessor::getNumPrograms()
-{
-    return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
-                // so this should be at least 1, even if you're not really implementing programs.
-}
-
-int LPHPFilterAudioProcessor::getCurrentProgram()
-{
-    return 0;
-}
-
-void LPHPFilterAudioProcessor::setCurrentProgram (int index)
-{
-}
-
-const juce::String LPHPFilterAudioProcessor::getProgramName (int index)
-{
-    return {};
-}
-
-void LPHPFilterAudioProcessor::changeProgramName (int index, const juce::String& newName)
-{
-}
+int LPHPFilterAudioProcessor::getNumPrograms() { return 1; }
+int LPHPFilterAudioProcessor::getCurrentProgram() { return 0; }
+void LPHPFilterAudioProcessor::setCurrentProgram(int) {}
+const juce::String LPHPFilterAudioProcessor::getProgramName(int) { return {}; }
+void LPHPFilterAudioProcessor::changeProgramName(int, const juce::String&) {}
 
 //==============================================================================
-void LPHPFilterAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void LPHPFilterAudioProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
 {
-    // Use this method as the place to do any pre-playback
-    filter.setSamplingRate(static_cast<float>(sampleRate));
+    filter.setSamplingRate(static_cast<float> (sampleRate));
 }
 
-void LPHPFilterAudioProcessor::releaseResources()
-{
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
-}
+void LPHPFilterAudioProcessor::releaseResources() {}
 
-#ifndef JucePlugin_PreferredChannelConfigurations
-bool LPHPFilterAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+#if !defined(JucePlugin_PreferredChannelConfigurations)
+bool LPHPFilterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-  #if JucePlugin_IsMidiEffect
-    juce::ignoreUnused (layouts);
+#if JucePlugin_IsMidiEffect
+    juce::ignoreUnused(layouts);
     return true;
-  #else
-    // This is the place where you check if the layout is supported.
-    // In this template code we only support mono or stereo.
-    // Some plugin hosts, such as certain GarageBand versions, will only
-    // load plugins that support stereo bus layouts.
+#else
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::mono()
-     && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        && layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
         return false;
 
-    // This checks if the input layout matches the output layout
-   #if ! JucePlugin_IsSynth
+#if ! JucePlugin_IsSynth
     if (layouts.getMainOutputChannelSet() != layouts.getMainInputChannelSet())
         return false;
-   #endif
+#endif
 
     return true;
-  #endif
+#endif
 }
 #endif
 
-void LPHPFilterAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void LPHPFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+    juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // In case we have more outputs than inputs, this code clears any output
-    // channels that didn't contain input data, (because these aren't
-    // guaranteed to be empty - they may contain garbage).
-    // This is here to avoid people getting screaming feedback
-    // when they first compile a plugin, but obviously you don't need to keep
-    // this code if your algorithm always overwrites all the output channels.
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
+    for (int ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
+        buffer.clear(ch, 0, buffer.getNumSamples());
 
-    const auto cutoffFrequency = cutoffFrequencyParameter->load();
-    const auto highpass = *highpassParameter < 0.5f ? false : true;
-    
-    filter.setCutoffFrequency(cutoffFrequency);
+    const float cutoff = cutoffFrequencyParameter->load();
+    const bool  highpass = highpassParameter->load() >= 0.5f;
+    const float gain = gainParameter->load();
+
+    filter.setCutoffFrequency(cutoff);
     filter.setHighpass(highpass);
-
     filter.processBlock(buffer, midiMessages);
+
+    // aplica ganho global após o filtro
+    buffer.applyGain(gain);
 }
 
 //==============================================================================
-bool LPHPFilterAudioProcessor::hasEditor() const
-{
-    return true; // (change this to false if you choose to not supply an editor)
-}
+bool LPHPFilterAudioProcessor::hasEditor() const { return true; }
 
 juce::AudioProcessorEditor* LPHPFilterAudioProcessor::createEditor()
 {
-    return new LPHPFilterAudioProcessorEditor (*this, parameters);
+    return new LPHPFilterAudioProcessorEditor(*this, parameters);
 }
 
 //==============================================================================
-void LPHPFilterAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+// Persistência do estado
+void LPHPFilterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    // You should use this method to store your parameters in the memory block.
-    // You could do that either as raw data, or use the XML or ValueTree classes
-    // as intermediaries to make it easy to save and load complex data.
+    auto state = parameters.copyState();
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 
-void LPHPFilterAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void LPHPFilterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    // You should use this method to restore your parameters from this memory block,
-    // whose contents will have been created by the getStateInformation() call.
+    std::unique_ptr<juce::XmlElement> xml(getXmlFromBinary(data, sizeInBytes));
+    if (xml != nullptr && xml->hasTagName(parameters.state.getType()))
+    {
+        juce::ValueTree vt = juce::ValueTree::fromXml(*xml);
+        parameters.replaceState(vt);
+    }
 }
 
 //==============================================================================
-// This creates new instances of the plugin..
+// Factory
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new LPHPFilterAudioProcessor();
